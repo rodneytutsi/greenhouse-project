@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Ransomware Early Warning Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #0f1115; --panel: #171a21; --border: #2a2e37;
+      --text: #e6e8eb; --muted: #9aa1ac;
+      --ok: #2ecc71; --warn: #f1c40f; --high: #e67e22; --critical: #e74c3c;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 24px; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .subtitle { color: var(--muted); margin-bottom: 24px; }
+    .summary { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; min-width: 160px; }
+    .card .num { font-size: 1.8rem; font-weight: 600; }
+    .card .label { color: var(--muted); font-size: 0.85rem; }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 32px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 0.75rem; }
+    .status-online { color: var(--ok); }
+    .status-offline { color: var(--critical); }
+    .sev-critical { color: var(--critical); font-weight: 600; }
+    .sev-high { color: var(--high); font-weight: 600; }
+    .sev-info { color: var(--muted); }
+    section h2 { font-size: 1.1rem; color: var(--muted); font-weight: 500; }
+  </style>
+  <meta http-equiv="refresh" content="30">
+</head>
+<body>
+  <h1>Ransomware Early Warning Dashboard</h1>
+  <div class="subtitle">Auto-refreshes every 30 seconds</div>
+
+  <div class="summary">
+    <div class="card"><div class="num">{{ agents|length }}</div><div class="label">Endpoints monitored</div></div>
+    <div class="card"><div class="num">{{ offline_count }}</div><div class="label">Offline endpoints</div></div>
+    <div class="card"><div class="num">{{ critical_count }}</div><div class="label">Unacknowledged critical alerts</div></div>
+  </div>
+
+  <section>
+    <h2>Endpoints</h2>
+    <table>
+      <thead><tr><th>Agent</th><th>Status</th><th>Last seen</th></tr></thead>
+      <tbody>
+        {% for a in agents %}
+        <tr>
+          <td>{{ a.agent_id }}</td>
+          <td class="status-{{ a.status }}">{{ a.status }}</td>
+          <td>{{ a.last_seen | int }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3">No endpoints have reported in yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Recent alerts</h2>
+    <table>
+      <thead><tr><th>Time</th><th>Agent</th><th>Severity</th><th>Type</th><th>Details</th><th>Ack</th></tr></thead>
+      <tbody>
+        {% for al in alerts %}
+        <tr>
+          <td>{{ al.timestamp | int }}</td>
+          <td>{{ al.agent_id }}</td>
+          <td class="sev-{{ al.severity }}">{{ al.severity }}</td>
+          <td>{{ al.type }}</td>
+          <td>{{ al.details }}</td>
+          <td>{{ "yes" if al.acknowledged else "no" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No alerts recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>
