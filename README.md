@@ -16,3 +16,10 @@ python -m greenhouse_agent.agent        # interactive
 Data goes to a SQLite file (`greenhouse.db`, override with `GREENHOUSE_DB`) using the table
 names from `greenhouse_schema.sql`. If Open-Meteo is unreachable, rows are tagged
 `weather_source=synthetic-fallback` (not real weather) and the agent tells you.
+
+### GUI
+
+```bash
+streamlit run greenhouse_agent/gui.py
+```
+Opens in your browser: **Chat** with the agent, **Dashboard** charts, **Dataset** preview and CSV download.
