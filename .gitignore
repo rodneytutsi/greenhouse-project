@@ -1,0 +1,4 @@
+greenhouse.db
+datasets/
+__pycache__/
+*.csv
