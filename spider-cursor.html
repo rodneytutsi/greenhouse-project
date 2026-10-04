@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spider-Verse Cursor</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; cursor: none; }
+  body {
+    background:
+      radial-gradient(circle, rgba(255,255,255,.07) 1.2px, transparent 1.6px) 0 0 / 14px 14px,
+      #0b0b14;
+    font: 14px/1.4 system-ui, sans-serif; color: #8a8aa8;
+  }
+  canvas { position: fixed; inset: 0; pointer-events: none; }
+  p { position: fixed; bottom: 16px; left: 0; right: 0; text-align: center; margin: 0; }
+</style>
+</head>
+<body>
+<p>Move your mouse. Click to make the spider jump.</p>
+<canvas id="c"></canvas>
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let W, H, dpr;
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize); resize();
+
+const mouse = { x: W / 2, y: H / 2 };
+addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+const spider = { x: W / 2, y: H / 2, vx: 0, vy: 0, angle: -Math.PI / 2, hop: 0 };
+addEventListener('pointerdown', () => { spider.hop = 1; });
+
+// 8 legs: 4 per side, each with a planted foot that steps when stretched too far.
+const LEGS = [];
+for (const side of [-1, 1]) {
+  for (let i = 0; i < 4; i++) {
+    LEGS.push({ side, i, reach: 34 + (i === 1 || i === 2 ? 8 : 0),
+                fx: spider.x, fy: spider.y, fromx: 0, fromy: 0, tx: 0, ty: 0, t: 1 });
+  }
+}
+
+function legRest(l) {
+  // foot rests ahead-and-out from the body
+  const dir = spider.angle + l.side * (0.6 + l.i * 0.55);
+  return { x: spider.x + Math.cos(dir) * l.reach, y: spider.y + Math.sin(dir) * l.reach };
+}
+
+function update(dt) {
+  const dx = mouse.x - spider.x, dy = mouse.y - spider.y;
+  const dist = Math.hypot(dx, dy);
+  const k = 14;
+  spider.vx += (dx * k - spider.vx * 6) * dt;
+  spider.vy += (dy * k - spider.vy * 6) * dt;
+  spider.x += spider.vx * dt; spider.y += spider.vy * dt;
+  const speed = Math.hypot(spider.vx, spider.vy);
+  if (speed > 25) {
+    const target = Math.atan2(spider.vy, spider.vx);
+    let d = target - spider.angle;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    spider.angle += d * Math.min(1, dt * 12);
+  }
+  spider.hop = Math.max(0, spider.hop - dt * 3);
+
+  for (const l of LEGS) {
+    const rest = legRest(l);
+    if (l.t >= 1) {
+      if (Math.hypot(l.fx - rest.x, l.fy - rest.y) > l.reach * 0.7) {
+        l.fromx = l.fx; l.fromy = l.fy;
+        const lead = Math.min(speed * 0.08, 30);
+        l.tx = rest.x + Math.cos(spider.angle) * lead;
+        l.ty = rest.y + Math.sin(spider.angle) * lead;
+        l.t = 0;
+      }
+    } else {
+      l.t = Math.min(1, l.t + dt * (6 + speed / 120));
+      const e = l.t * l.t * (3 - 2 * l.t);
+      l.fx = l.fromx + (l.tx - l.fromx) * e;
+      l.fy = l.fromy + (l.ty - l.fromy) * e;
+    }
+  }
+}
+
+function drawLeg(l, ox, oy, color) {
+  const hip = { x: spider.x + ox, y: spider.y + oy };
+  const foot = { x: l.fx + ox, y: l.fy + oy };
+  const mx = (hip.x + foot.x) / 2, my = (hip.y + foot.y) / 2;
+  const d = Math.hypot(foot.x - hip.x, foot.y - hip.y);
+  // knee bows outward, away from the body axis
+  const nx = -(foot.y - hip.y) / (d || 1), ny = (foot.x - hip.x) / (d || 1);
+  const bow = 14 * l.side;
+  const knee = { x: mx + nx * bow, y: my + ny * bow };
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(hip.x, hip.y);
+  ctx.quadraticCurveTo(knee.x, knee.y - 10, foot.x, foot.y);
+  ctx.stroke();
+}
+
+function drawBody(ox, oy, body, mark) {
+  const s = 1 + spider.hop * 0.35;
+  ctx.save();
+  ctx.translate(spider.x + ox, spider.y + oy);
+  ctx.rotate(spider.angle + Math.PI / 2);
+  ctx.scale(s, s);
+  ctx.fillStyle = body;
+  // abdomen
+  ctx.beginPath(); ctx.ellipse(0, 9, 9, 12, 0, 0, Math.PI * 2); ctx.fill();
+  // head
+  ctx.beginPath(); ctx.ellipse(0, -7, 6.5, 7, 0, 0, Math.PI * 2); ctx.fill();
+  if (mark) {
+    // the red hourglass-ish emblem on the back
+    ctx.fillStyle = mark;
+    ctx.beginPath();
+    ctx.moveTo(-4, 3); ctx.lineTo(4, 3); ctx.lineTo(0, 9);
+    ctx.lineTo(4, 15); ctx.lineTo(-4, 15); ctx.lineTo(0, 9); ctx.closePath();
+    ctx.fill();
+    // eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(-2.8, -9, 1.8, 2.4, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(2.8, -9, 1.8, 2.4, 0.3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  const speed = Math.hypot(spider.vx, spider.vy);
+  // Spider-Verse chromatic misprint: offset cyan/magenta ghosts that widen with speed.
+  const g = 1.5 + Math.min(speed / 220, 4) + spider.hop * 4;
+  ctx.globalCompositeOperation = 'lighter';
+  for (const l of LEGS) drawLeg(l, -g, 0, 'rgba(0,229,255,.75)');
+  drawBody(-g, 0, 'rgba(0,229,255,.75)');
+  for (const l of LEGS) drawLeg(l, g, g * 0.5, 'rgba(255,40,120,.75)');
+  drawBody(g, g * 0.5, 'rgba(255,40,120,.75)');
+  ctx.globalCompositeOperation = 'source-over';
+  for (const l of LEGS) drawLeg(l, 0, 0, '#0a0a0a');
+  drawBody(0, 0, '#0a0a0a', '#e4202a');
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05); last = now;
+  update(dt); draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
