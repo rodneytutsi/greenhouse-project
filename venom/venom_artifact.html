@@ -1,0 +1,203 @@
+<title>Venom Symbiote</title>
+<style>
+  /* Single dark look by choice: black goo on a deep violet ground; full-bleed canvas, touch-driven. */
+  :root { --bg: #0b0710; --hint: #9a8fb3; color-scheme: dark; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: var(--bg); color: var(--hint); }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  #hint { position: fixed; left: 16px; right: 16px; bottom: calc(8% + env(safe-area-inset-bottom, 0px));
+          text-align: center; font: 600 15px/1.4 system-ui, sans-serif; letter-spacing: .25em;
+          text-transform: uppercase; pointer-events: none; transition: opacity 1s; }
+</style>
+<canvas id="c" aria-label="Venom symbiote that reacts to touch"></canvas>
+<div id="hint">Touch me</div>
+<script>
+(() => {
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const hint = document.getElementById('hint');
+  let W, H, DPR;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  addEventListener('resize', resize); resize();
+
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const blob = { x: W / 2, y: H / 2, vx: 0, vy: 0, r: Math.min(W, H) * 0.09, squash: 0 };
+  const ptr = { x: W / 2, y: H / 2, down: false, active: false };
+  let tendrils = [], drops = [], t = 0, lastTouch = -99;
+
+  class Tendril {
+    constructor(angle, len, life) {
+      this.angle = angle; this.len = len; this.life = life; this.age = 0;
+      this.n = 22; this.seg = len / this.n; this.grow = 0; this.phase = rnd(0, 6.28);
+      this.w = rnd(0.8, 1.2) * blob.r * 0.42;
+      this.pts = [];
+      for (let i = 0; i < this.n; i++) {
+        const x = blob.x + Math.cos(angle) * i * this.seg, y = blob.y + Math.sin(angle) * i * this.seg;
+        this.pts.push({ x, y, px: x, py: y });
+      }
+    }
+    update(goal) {
+      this.age++;
+      const dying = this.age > this.life;
+      this.grow += ((dying ? 0 : 1) - this.grow) * 0.12;
+      const base = this.pts[0];
+      base.x = blob.x + Math.cos(this.angle) * blob.r * 0.6;
+      base.y = blob.y + Math.sin(this.angle) * blob.r * 0.6;
+      const tip = this.pts[this.n - 1];
+      // pull the tip toward the goal (limited reach), with a whip wobble
+      let dx = goal.x - base.x, dy = goal.y - base.y;
+      const d = Math.hypot(dx, dy) || 1, reach = Math.min(d, this.len * 0.97);
+      const gx = base.x + dx / d * reach, gy = base.y + dy / d * reach;
+      tip.x += (gx - tip.x) * 0.16 * (dying ? 0.2 : 1);
+      tip.y += (gy - tip.y) * 0.16 * (dying ? 0.2 : 1);
+      for (let i = 1; i < this.n; i++) {
+        const p = this.pts[i];
+        const vx = (p.x - p.px) * 0.9, vy = (p.y - p.py) * 0.9;
+        p.px = p.x; p.py = p.y;
+        const wob = Math.sin(t * 6 + this.phase + i * 0.7) * 0.35 * (i / this.n);
+        p.x += vx - dy / d * wob; p.y += vy + dx / d * wob;
+      }
+      for (let k = 0; k < 6; k++) {
+        base.x = blob.x + Math.cos(this.angle) * blob.r * 0.6;
+        base.y = blob.y + Math.sin(this.angle) * blob.r * 0.6;
+        for (let i = 1; i < this.n; i++) {
+          const a = this.pts[i - 1], b = this.pts[i];
+          const ex = b.x - a.x, ey = b.y - a.y, el = Math.hypot(ex, ey) || 1;
+          const diff = (el - this.seg * Math.max(this.grow, 0.2)) / el;
+          if (i === 1) { b.x -= ex * diff; b.y -= ey * diff; }
+          else { a.x += ex * diff * 0.5; a.y += ey * diff * 0.5; b.x -= ex * diff * 0.5; b.y -= ey * diff * 0.5; }
+        }
+      }
+      return !(dying && this.grow < 0.03);
+    }
+    draw() {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (const pass of [0, 1]) {
+        for (let i = 1; i < this.n; i++) {
+          const a = this.pts[i - 1], b = this.pts[i];
+          const k = Math.pow(1 - i / this.n, 0.55) * this.grow;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+          if (pass === 0) { ctx.strokeStyle = '#030204'; ctx.lineWidth = Math.max(1, this.w * 2 * k); }
+          else { ctx.strokeStyle = 'rgba(190,170,255,.07)'; ctx.lineWidth = Math.max(0.5, this.w * 0.35 * k); }
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function burst(x, y) {
+    lastTouch = t;
+    hint.style.opacity = 0;
+    // blob lunges at the touch
+    const dx = x - blob.x, dy = y - blob.y, d = Math.hypot(dx, dy) || 1;
+    blob.vx += dx / d * Math.min(d * 0.06, 22); blob.vy += dy / d * Math.min(d * 0.06, 22);
+    blob.squash = 1;
+    const base = Math.atan2(dy, dx);
+    for (let i = 0; i < 6; i++) {
+      tendrils.push(new Tendril(base + rnd(-1.3, 1.3), rnd(1.6, 3.2) * blob.r * 2.2, rnd(50, 110)));
+    }
+    for (let i = 0; i < 18; i++) {
+      const a = rnd(0, 6.28), s = rnd(2, 9);
+      drops.push({ x: blob.x, y: blob.y, vx: Math.cos(a) * s + dx / d * 3, vy: Math.sin(a) * s + dy / d * 3,
+                   r: rnd(2, 7), life: rnd(40, 90) });
+    }
+    if (tendrils.length > 40) tendrils.splice(0, tendrils.length - 40);
+  }
+
+  function setPtr(e) { ptr.x = e.clientX; ptr.y = e.clientY; ptr.active = true; }
+  cv.addEventListener('pointerdown', e => { setPtr(e); ptr.down = true; cv.setPointerCapture(e.pointerId); burst(ptr.x, ptr.y); });
+  cv.addEventListener('pointermove', e => { setPtr(e); if (ptr.down && Math.random() < 0.18) burst(ptr.x, ptr.y); });
+  const up = () => { ptr.down = false; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+
+  function drawBlob() {
+    const sp = Math.hypot(blob.vx, blob.vy), ang = Math.atan2(blob.vy, blob.vx);
+    const N = 36, pts = [];
+    for (let i = 0; i < N; i++) {
+      const a = i / N * Math.PI * 2;
+      let r = blob.r * (1 + 0.07 * Math.sin(a * 3 + t * 2.1) + 0.05 * Math.sin(a * 5 - t * 3.3)
+                          + 0.12 * blob.squash * Math.sin(a * 2 + t * 14));
+      r *= 1 + Math.cos(a - ang) * Math.min(sp * 0.02, 0.35);   // stretch along motion
+      pts.push([blob.x + Math.cos(a) * r, blob.y + Math.sin(a) * r]);
+    }
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const p = pts[i], q = pts[(i + 1) % N];
+      const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+      if (i === 0) ctx.moveTo(mx, my);
+      else ctx.quadraticCurveTo(p[0], p[1], mx, my);
+    }
+    ctx.closePath();
+    ctx.shadowColor = 'rgba(150,100,255,.55)'; ctx.shadowBlur = 28;
+    ctx.fillStyle = '#030204'; ctx.fill();
+    ctx.shadowBlur = 0;
+    const g = ctx.createRadialGradient(blob.x - blob.r * .35, blob.y - blob.r * .45, 2, blob.x, blob.y, blob.r);
+    g.addColorStop(0, 'rgba(200,185,255,.22)'); g.addColorStop(.5, 'rgba(120,90,200,.05)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fill();
+    // eyes look toward the pointer
+    const lookA = Math.atan2(ptr.y - blob.y, ptr.x - blob.x);
+    const ox = Math.cos(lookA) * blob.r * 0.18, oy = Math.sin(lookA) * blob.r * 0.18;
+    const squint = 0.55 + 0.45 * Math.min(1, blob.squash + (t - lastTouch < 1.5 ? 0.4 : 0));
+    ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 14;
+    for (const s of [-1, 1]) {
+      ctx.save();
+      ctx.translate(blob.x + ox + s * blob.r * 0.34, blob.y + oy - blob.r * 0.12);
+      ctx.rotate(s * 0.42);
+      ctx.beginPath(); ctx.ellipse(0, 0, blob.r * 0.27, blob.r * 0.1 * squint + 2, 0, 0, 7); ctx.fill();
+      ctx.restore();
+    }
+    ctx.shadowBlur = 0;
+    // grin after being touched
+    if (t - lastTouch < 3) {
+      const open = Math.min(1, (3 - (t - lastTouch)) / 1.5);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      ctx.beginPath();
+      const gx = blob.x + ox * 0.6, gy = blob.y + blob.r * 0.38 + oy * 0.6;
+      ctx.moveTo(gx - blob.r * 0.5, gy - 4);
+      for (let i = 0; i <= 8; i++) {
+        const x = gx - blob.r * 0.5 + i / 8 * blob.r;
+        ctx.lineTo(x, gy + (i % 2 ? 1 : -1) * 6 * open + Math.sin(i / 8 * Math.PI) * 10 * open);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function frame() {
+    t += 1 / 60;
+    ctx.fillStyle = 'rgba(11,7,16,.55)'; ctx.fillRect(0, 0, W, H);   // soft trails
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .2, W / 2, H / 2, Math.max(W, H) * .75);
+    vg.addColorStop(0, 'rgba(60,35,95,.12)'); vg.addColorStop(1, 'rgba(0,0,0,.35)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+    // blob chases the pointer when touched, otherwise drifts
+    const tx = ptr.active ? ptr.x : W / 2 + Math.cos(t * .6) * W * .15;
+    const ty = ptr.active ? ptr.y : H / 2 + Math.sin(t * .8) * H * .12;
+    const near = ptr.down ? 0.012 : 0.0035;
+    blob.vx += (tx - blob.x) * near; blob.vy += (ty - blob.y) * near;
+    blob.vx *= 0.9; blob.vy *= 0.9;
+    blob.x += blob.vx; blob.y += blob.vy;
+    blob.squash *= 0.93;
+
+    // tendrils reach for the pointer
+    if (ptr.down && t % 0.2 < 1 / 60 + 0.001) burst(ptr.x, ptr.y);
+    tendrils = tendrils.filter(td => td.update(ptr.active ? ptr : { x: blob.x + 120, y: blob.y }));
+    tendrils.forEach(td => td.draw());
+
+    for (const d of drops) {
+      d.vy += 0.25; d.x += d.vx; d.y += d.vy; d.vx *= 0.99; d.life--;
+      ctx.globalAlpha = Math.max(0, Math.min(1, d.life / 30));
+      ctx.fillStyle = '#030204'; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(200,185,255,.35)'; ctx.beginPath(); ctx.arc(d.x - d.r * .3, d.y - d.r * .3, d.r * .3, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    drops = drops.filter(d => d.life > 0);
+
+    drawBlob();
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+</script>
