@@ -1,0 +1,142 @@
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #f3f7f1, #eef5ed);
+  color: #1f2a1f;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+header {
+  background: linear-gradient(90deg, #1f5f3d, #2b7a4b);
+  color: #fff;
+  padding: 28px 36px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+header h1 {
+  margin: 0 0 6px;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+}
+
+.sub {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 0.95rem;
+}
+
+main {
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 0 20px 30px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 22px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #dbe7dc;
+  border-radius: 16px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 10px 22px rgba(31, 95, 61, 0.08);
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+  margin-bottom: 14px;
+  color: #234d38;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #edf1ee;
+}
+
+th {
+  color: #597462;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.status {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.status.normal {
+  background: #e2f6e9;
+  color: #1d7c45;
+}
+
+.status.warning {
+  background: #fff0d9;
+  color: #b76f00;
+}
+
+.status.critical {
+  background: #fbe5e5;
+  color: #b6322d;
+}
+
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f8faf8;
+  border: 1px solid #e4ebdf;
+}
+
+.alert-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.alert-item small {
+  display: block;
+  color: #607060;
+}
+
+canvas {
+  width: 100% !important;
+  height: 260px !important;
+}
+
+footer {
+  text-align: center;
+  padding: 20px 16px 40px;
+  color: #465848;
+}
+
+@media (max-width: 640px) {
+  header {
+    padding: 22px 18px;
+  }
+
+  main {
+    margin-top: 18px;
+  }
+
+  .card {
+    padding: 14px 12px;
+  }
+}
