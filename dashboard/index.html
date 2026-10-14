@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Greenhouse Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Greenhouse Dashboard</h1>
+    <p class="sub">Live sensor overview — demo mode if no DB connected</p>
+  </header>
+
+  <main>
+    <section class="cards">
+      <div class="card">
+        <h2>Latest Readings</h2>
+        <div id="latest-table"></div>
+      </div>
+
+      <div class="card">
+        <h2>Temperature (last 1 hour)</h2>
+        <canvas id="chart-temp"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Alerts</h2>
+        <div id="alerts-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <small>Greenhouse Project — Dashboard (static + optional Node.js API)</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
